@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>归并排序可视化演示</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/theme/white.css">
+    <style>
+        :root {
+            --card-width: 44px;
+            --card-gap: 8px;
+            --color-default: #3b82f6;
+            --color-compare: #f59e0b;
+            --color-merge: #8b5cf6;
+            --color-sorted: #22c55e;
+            --color-insert: #ec4899;
+        }
+
+        .reveal {
+            font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+        }
+
+        .reveal h1, .reveal h2, .reveal h3 {
+            font-weight: 600;
+            color: #1f2937;
+            text-transform: none;
+        }
+
+        .reveal h1 { font-size: 2.2em; }
+        .reveal h2 { font-size: 1.5em; margin-bottom: 0.5em; }
+
+        .reveal .slides section {
+            padding: 16px 20px;
+        }
+
+        .cover-slide h1 {
+            font-size: 2.4em;
+            color: #111827;
+            margin-bottom: 0.3em;
+        }
+        .cover-slide p {
+            font-size: 1.05em;
+            color: #6b7280;
+        }
+
+        .algo-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .algo-controls input[type="text"] {
+            padding: 6px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 13px;
+            width: 240px;
+            outline: none;
+        }
+
+        .algo-controls button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            background: #2563eb;
+            color: #fff;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .algo-controls button:hover { background: #1d4ed8; }
+        .algo-controls button:active { transform: translateY(1px); }
+        .algo-controls button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+        .algo-controls .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        .algo-controls .btn-secondary:hover { background: #e5e7eb; }
+
+        .viz-container {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            height: 300px;
+            margin: 0 auto 12px;
+            padding: 10px 10px 26px 10px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            max-width: 900px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .card-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            flex-shrink: 0;
+            width: var(--card-width);
+            margin-right: var(--card-gap);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 1;
+        }
+
+        .card {
+            width: var(--card-width);
+            border-radius: 6px;
+            background: linear-gradient(180deg, #60a5fa 0%, var(--color-default) 100%);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+            position: relative;
+        }
+
+        .card .val { font-size: 14px; line-height: 1; }
+
+        .card-index-overlay {
+            position: absolute;
+            bottom: 6px;
+            width: var(--card-width);
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .card-wrapper.focused .card {
+            box-shadow: 0 0 18px rgba(245, 158, 11, 0.8);
+            z-index: 100;
+        }
+
+        .merge-viz .card-wrapper.comparing .card {
+            background: linear-gradient(180deg, #fbbf24 0%, var(--color-compare) 100%);
+            box-shadow: 0 0 18px rgba(251, 191, 36, 0.85);
+        }
+
+        .merge-viz .card-wrapper.merging .card {
+            background: linear-gradient(180deg, #a78bfa 0%, var(--color-merge) 100%);
+            box-shadow: 0 0 18px rgba(139, 92, 246, 0.85);
+        }
+
+        .merge-viz .card-wrapper.sorted-merge .card {
+            background: linear-gradient(180deg, #4ade80 0%, var(--color-sorted) 100%);
+            opacity: 0.8;
+        }
+
+        .range-box {
+            position: absolute;
+            bottom: 30px;
+            height: calc(100% - 40px);
+            background: rgba(139, 92, 246, 0.12);
+            border: 1px dashed rgba(139, 92, 246, 0.45);
+            border-radius: 8px;
+            transition: left 0.4s ease, width 0.4s ease, opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .info-panel {
+            max-width: 800px;
+            margin: 0 auto 10px;
+            padding: 10px 14px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            text-align: center;
+            min-height: 40px;
+        }
+        .step-desc { font-size: 15px; color: #111827; margin-bottom: 3px; }
+        .step-counter { font-size: 12px; color: #6b7280; }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+        .legend-dot { width: 11px; height: 11px; border-radius: 2px; }
+
+        .playback {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .playback button { padding: 8px 16px; border-radius: 8px; font-size: 13px; }
+
+        @media (max-width: 768px) {
+            :root { --card-width: 32px; --card-gap: 4px; }
+            .viz-container { height: 220px; }
+            .reveal h2 { font-size: 1.2em; }
+            .algo-controls input[type="text"] { width: 180px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section class="cover-slide">
+                <h1>归并排序可视化演示</h1>
+                <p>一步步展示数组拆分与归并过程，理解归并排序的分治思想</p>
+                <p style="margin-top: 40px; font-size: 0.9em; color: #9ca3af;">按 → 键或点击右下角箭头开始</p>
+            </section>
+
+            <section class="section merge-viz">
+                <h2>归并排序</h2>
+                <div class="algo-controls">
+                    <input type="text" class="array-input" placeholder="输入数字，如：5,3,8,1,2" value="5,3,8,1,2,7,4">
+                    <button class="btn-generate">生成数组</button>
+                    <button class="btn-reset btn-secondary">重置</button>
+                </div>
+                <div class="legend">
+                    <span class="legend-item"><span class="legend-dot" style="background:var(--color-default)"></span>默认</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:var(--color-compare)"></span>比较</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:var(--color-merge)"></span>归并中</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:var(--color-sorted)"></span>已归位</span>
+                </div>
+                <div class="viz-container" id="viz-merge"></div>
+                <div class="info-panel">
+                    <div class="step-desc" id="desc-merge">请点击“生成数组”开始</div>
+                    <div class="step-counter" id="counter-merge">- / -</div>
+                </div>
+                <div class="playback">
+                    <button class="btn-prev">上一步</button>
+                    <button class="btn-play">自动播放</button>
+                    <button class="btn-next">下一步</button>
+                </div>
+            </section>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            transition: 'slide',
+            width: 1100,
+            height: 720,
+            margin: 0.06
+        });
+
+        function parseInput(str) {
+            return str.split(/[,，\s]+/)
+                .map(s => s.trim())
+                .filter(s => s !== '')
+                .map(Number)
+                .filter(n => !isNaN(n));
+        }
+
+        function clampArray(arr, maxLen = 20) {
+            return arr.slice(0, maxLen);
+        }
+
+        function deepCopy(arr) {
+            return arr.map(item => ({ ...item }));
+        }
+
+        function createSnapshot(array, description, focus = [], animation = '', extras = {}) {
+            return {
+                array: deepCopy(array),
+                desc: description,
+                focus,
+                animation,
+                extras
+            };
+        }
+
+        function generateMergeSteps(arr) {
+            const steps = [];
+            const n = arr.length;
+            const array = arr.map((v, i) => ({ value: v, state: 'default', id: i }));
+            steps.push(createSnapshot(array, `初始数组: [${arr.join(', ')}]`));
+
+            function markRange(left, right, state) {
+                for (let idx = left; idx <= right; idx++) {
+                    array[idx] = { ...array[idx], state };
+                }
+            }
+
+            function merge(left, mid, right) {
+                const leftPart = array.slice(left, mid + 1).map(item => ({ ...item }));
+                const rightPart = array.slice(mid + 1, right + 1).map(item => ({ ...item }));
+                let i = 0;
+                let j = 0;
+                let k = left;
+
+                markRange(left, right, 'default');
+                steps.push(createSnapshot(array,
+                    `归并区间 [${left}, ${right}]：左半区 [${left}, ${mid}] 与右半区 [${mid + 1}, ${right}]`,
+                    [], '', { range: [left, right] }));
+
+                while (i < leftPart.length || j < rightPart.length) {
+                    if (i < leftPart.length && j < rightPart.length) {
+                        steps.push(createSnapshot(array,
+                            `比较 left=${leftPart[i].value} 和 right=${rightPart[j].value}`,
+                            [left + i, mid + 1 + j], 'compare', { range: [left, right], leftIdx: left + i, rightIdx: mid + 1 + j, target: k }));
+
+                        if (leftPart[i].value <= rightPart[j].value) {
+                            array[k] = { ...leftPart[i], state: 'merging' };
+                            i++;
+                        } else {
+                            array[k] = { ...rightPart[j], state: 'merging' };
+                            j++;
+                        }
+                    } else if (i < leftPart.length) {
+                        array[k] = { ...leftPart[i], state: 'merging' };
+                        steps.push(createSnapshot(array,
+                            `将左半区元素 ${leftPart[i].value} 写入 arr[${k}]`,
+                            [k], 'merge', { range: [left, right], target: k }));
+                        i++;
+                    } else {
+                        array[k] = { ...rightPart[j], state: 'merging' };
+                        steps.push(createSnapshot(array,
+                            `将右半区元素 ${rightPart[j].value} 写入 arr[${k}]`,
+                            [k], 'merge', { range: [left, right], target: k }));
+                        j++;
+                    }
+
+                    if (steps[steps.length - 1].animation !== 'merge') {
+                        steps.push(createSnapshot(array,
+                            `写入位置 arr[${k}]`,
+                            [k], 'merge', { range: [left, right], target: k }));
+                    }
+
+                    k++;
+                }
+
+                markRange(left, right, 'sorted-merge');
+                steps.push(createSnapshot(array,
+                    `区间 [${left}, ${right}] 已归并完成`,
+                    [], '', { range: [left, right] }));
+            }
+
+            function sortRange(left, right) {
+                if (left >= right) {
+                    if (left === right) {
+                        array[left] = { ...array[left], state: 'sorted-merge' };
+                        steps.push(createSnapshot(array,
+                            `单元素区间 [${left}, ${right}] 已有序`,
+                            [left], '', { range: [left, right] }));
+                    }
+                    return;
+                }
+                const mid = Math.floor((left + right) / 2);
+                steps.push(createSnapshot(array,
+                    `递归排序左区间 [${left}, ${mid}]`,
+                    [], '', { range: [left, mid] }));
+                sortRange(left, mid);
+                steps.push(createSnapshot(array,
+                    `递归排序右区间 [${mid + 1}, ${right}]`,
+                    [], '', { range: [mid + 1, right] }));
+                sortRange(mid + 1, right);
+                merge(left, mid, right);
+            }
+
+            sortRange(0, n - 1);
+            steps.push(createSnapshot(array, `排序完成！`, [], '', { range: [0, n - 1] }));
+            return steps;
+        }
+
+        class Visualizer {
+            constructor(type, containerId, descId, counterId, generatorFn) {
+                this.type = type;
+                this.container = document.getElementById(containerId);
+                this.descEl = document.getElementById(descId);
+                this.counterEl = document.getElementById(counterId);
+                this.generatorFn = generatorFn;
+                this.steps = [];
+                this.currentIndex = -1;
+                this.playing = false;
+                this.timer = null;
+                this.baseArray = [];
+
+                const section = this.container.closest('section');
+                this.inputEl = section.querySelector('.array-input');
+                this.btnGenerate = section.querySelector('.btn-generate');
+                this.btnReset = section.querySelector('.btn-reset');
+                this.btnPrev = section.querySelector('.btn-prev');
+                this.btnNext = section.querySelector('.btn-next');
+                this.btnPlay = section.querySelector('.btn-play');
+
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                this.btnGenerate.addEventListener('click', () => this.generate());
+                this.btnReset.addEventListener('click', () => this.reset());
+                this.btnPrev.addEventListener('click', () => this.prev());
+                this.btnNext.addEventListener('click', () => this.next());
+                this.btnPlay.addEventListener('click', () => this.togglePlay());
+            }
+
+            generate() {
+                this.pause();
+                let raw = parseInput(this.inputEl.value);
+                if (raw.length === 0) {
+                    this.descEl.textContent = '请输入有效的数字数组';
+                    return;
+                }
+                raw = clampArray(raw, 20);
+                if (raw.some(v => v < 0)) {
+                    this.descEl.textContent = '请输入非负数';
+                    return;
+                }
+                this.baseArray = [...raw];
+                this.steps = this.generatorFn(raw);
+                this.currentIndex = -1;
+                this.renderEmpty();
+                this.updateInfo();
+            }
+
+            reset() {
+                this.pause();
+                if (this.baseArray.length === 0) {
+                    this.generate();
+                    return;
+                }
+                this.steps = this.generatorFn(this.baseArray);
+                this.currentIndex = -1;
+                this.renderEmpty();
+                this.updateInfo();
+            }
+
+            createCardWrapper(id, val) {
+                const wrap = document.createElement('div');
+                wrap.className = 'card-wrapper';
+                wrap.dataset.id = id;
+
+                const card = document.createElement('div');
+                card.className = 'card';
+                const maxVal = Math.max(...this.baseArray, 1);
+                const unitH = 200 / maxVal;
+                const h = Math.max(28, Math.round(val * unitH));
+                card.style.height = `${h}px`;
+
+                const valSpan = document.createElement('span');
+                valSpan.className = 'val';
+                valSpan.textContent = val;
+                card.appendChild(valSpan);
+                wrap.appendChild(card);
+
+                return wrap;
+            }
+
+            renderEmpty() {
+                this.container.innerHTML = '';
+                this.baseArray.forEach((val, idx) => {
+                    this.container.appendChild(this.createCardWrapper(idx, val));
+                });
+                const cardWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-width')) || 44;
+                const cardGap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-gap')) || 8;
+                const stepSize = cardWidth + cardGap;
+                const wrappers = Array.from(this.container.querySelectorAll('.card-wrapper'));
+                const baseOffset = wrappers[0] ? wrappers[0].offsetLeft : 0;
+                this.baseArray.forEach((_, idx) => {
+                    const idxDiv = document.createElement('div');
+                    idxDiv.className = 'card-index-overlay';
+                    idxDiv.textContent = idx;
+                    idxDiv.style.left = `${baseOffset + idx * stepSize}px`;
+                    this.container.appendChild(idxDiv);
+                });
+            }
+
+            renderStep(index) {
+                if (index < 0 || index >= this.steps.length) return;
+                const step = this.steps[index];
+                const maxVal = Math.max(...this.baseArray, 1);
+                const unitH = 200 / maxVal;
+                const cardWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-width')) || 44;
+                const cardGap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--card-gap')) || 8;
+                const stepSize = cardWidth + cardGap;
+
+                let wrappers = Array.from(this.container.querySelectorAll('.card-wrapper'));
+                const wrapperById = new Map();
+                wrappers.forEach(w => wrapperById.set(Number(w.dataset.id), w));
+
+                step.array.forEach(item => {
+                    if (!wrapperById.has(item.id)) {
+                        const wrap = this.createCardWrapper(item.id, item.value);
+                        wrapperById.set(item.id, wrap);
+                        this.container.appendChild(wrap);
+                    }
+                });
+
+                wrapperById.forEach(w => {
+                    w.className = 'card-wrapper';
+                    w.style.transform = '';
+                    w.style.zIndex = '';
+                });
+
+                this.container.querySelectorAll('.range-box, .card-index-overlay').forEach(el => el.remove());
+
+                wrappers = Array.from(this.container.querySelectorAll('.card-wrapper'));
+                const baseOffset = wrappers[0] ? wrappers[0].offsetLeft : 0;
+
+                step.array.forEach((item, posIndex) => {
+                    const w = wrapperById.get(item.id);
+                    if (!w) return;
+                    const dx = (posIndex - item.id) * stepSize;
+                    w.style.transform = `translateX(${dx}px)`;
+
+                    if (item.state && item.state !== 'default') {
+                        w.classList.add(item.state);
+                    }
+
+                    const card = w.querySelector('.card');
+                    const h = Math.max(28, Math.round(item.value * unitH));
+                    card.style.height = `${h}px`;
+                    card.querySelector('.val').textContent = item.value;
+
+                    if (step.focus && step.focus.includes(posIndex)) {
+                        w.classList.add('focused');
+                        w.style.zIndex = '100';
+                    }
+                });
+
+                if (step.animation) {
+                    const applyAnimToPos = (posIdx, animClass) => {
+                        const item = step.array[posIdx];
+                        if (!item) return;
+                        const w = wrapperById.get(item.id);
+                        if (w) w.classList.add(animClass);
+                    };
+
+                    if (step.animation === 'compare') {
+                        step.focus.forEach(idx => applyAnimToPos(idx, 'comparing'));
+                    } else if (step.animation === 'merge') {
+                        step.focus.forEach(idx => applyAnimToPos(idx, 'merging'));
+                    }
+                }
+
+                if (step.extras && step.extras.range) {
+                    const [low, high] = step.extras.range;
+                    const box = document.createElement('div');
+                    box.className = 'range-box';
+                    const leftX = baseOffset + low * stepSize - 4;
+                    const width = (high - low + 1) * stepSize + 4;
+                    box.style.left = `${leftX}px`;
+                    box.style.width = `${width}px`;
+                    this.container.appendChild(box);
+                }
+
+                step.array.forEach((_, posIndex) => {
+                    const idxDiv = document.createElement('div');
+                    idxDiv.className = 'card-index-overlay';
+                    idxDiv.textContent = posIndex;
+                    idxDiv.style.left = `${baseOffset + posIndex * stepSize}px`;
+                    this.container.appendChild(idxDiv);
+                });
+
+                this.descEl.textContent = step.desc;
+                this.counterEl.textContent = `步骤 ${index + 1} / ${this.steps.length}`;
+            }
+
+            updateInfo() {
+                if (this.currentIndex === -1) {
+                    this.descEl.textContent = '请点击“下一步”开始演示';
+                    this.counterEl.textContent = `- / ${this.steps.length}`;
+                } else {
+                    this.renderStep(this.currentIndex);
+                }
+            }
+
+            next() {
+                if (this.steps.length === 0) {
+                    this.generate();
+                    return;
+                }
+                if (this.currentIndex < this.steps.length - 1) {
+                    this.currentIndex++;
+                    this.renderStep(this.currentIndex);
+                } else {
+                    this.pause();
+                }
+            }
+
+            prev() {
+                if (this.steps.length === 0) return;
+                if (this.currentIndex >= 0) {
+                    this.currentIndex--;
+                    if (this.currentIndex === -1) {
+                        this.renderEmpty();
+                        this.updateInfo();
+                    } else {
+                        this.renderStep(this.currentIndex);
+                    }
+                }
+            }
+
+            togglePlay() {
+                if (this.playing) {
+                    this.pause();
+                } else {
+                    this.play();
+                }
+            }
+
+            play() {
+                if (this.steps.length === 0) {
+                    this.generate();
+                    return;
+                }
+                this.playing = true;
+                this.btnPlay.textContent = '暂停';
+                if (this.currentIndex >= this.steps.length - 1) {
+                    this.currentIndex = -1;
+                }
+                this.timer = setInterval(() => {
+                    if (this.currentIndex < this.steps.length - 1) {
+                        this.currentIndex++;
+                        this.renderStep(this.currentIndex);
+                    } else {
+                        this.pause();
+                    }
+                }, 1100);
+            }
+
+            pause() {
+                this.playing = false;
+                this.btnPlay.textContent = '自动播放';
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new Visualizer('merge', 'viz-merge', 'desc-merge', 'counter-merge', generateMergeSteps);
+            Reveal.on('slidechanged', () => {
+                // only one visualizer here, pause if needed
+            });
+        });
+    </script>
+</body>
+</html>
