@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AVL树构建与旋转实操 — 插入序列 [30,20,10,25,40,35,50]</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:linear-gradient(135deg,#e8eaf6,#f5f7fa);min-height:100vh;padding:24px}
+.wrap{max-width:1100px;margin:auto}
+
+h1{font-size:26px;color:#1a237e;margin-bottom:6px}
+.subtitle{color:#546e7a;margin-bottom:20px;font-size:15px}
+
+/* 控制栏 */
+.controls{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.controls button{padding:10px 22px;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-weight:600;transition:all .2s}
+.controls button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.15)}
+#btnPrev{background:#eceff1;color:#37474f}
+#btnNext{background:#1a237e;color:#fff}
+#btnPrev:disabled,#btnNext:disabled{opacity:.35;cursor:default;transform:none;box-shadow:none}
+#stepTag{font-weight:700;font-size:16px;color:#37474f;min-width:100px}
+
+/* 信息卡片 */
+.info-card{background:#fff;border-radius:12px;padding:18px 22px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:5px solid #1a237e}
+.info-card h2{font-size:18px;color:#1a237e;margin-bottom:6px}
+.info-card .detail{font-size:14px;color:#546e7a;line-height:1.7}
+.info-card .tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:13px;font-weight:700;margin-right:6px}
+.tag-danger{background:#ffebee;color:#c62828}
+.tag-warn{background:#fff8e1;color:#e65100}
+.tag-ok{background:#e8f5e9;color:#2e7d32}
+.tag-axis{background:#fff3e0;color:#e65100;font-size:14px;padding:3px 14px}
+
+/* SVG 面板 */
+.svg-panel{background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);text-align:center}
+svg{display:block;margin:0 auto}
+
+/* 图例 */
+.legend{display:flex;gap:20px;justify-content:center;margin-top:12px;flex-wrap:wrap;font-size:13px;color:#546e7a}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend .dot{width:14px;height:14px;border-radius:50%;border:2px solid #333}
+
+/* 中序遍历区 */
+.inorder{background:#fff;border-radius:12px;padding:18px 22px;margin-top:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.inorder h3{font-size:16px;color:#1a237e;margin-bottom:6px}
+.inorder .seq{font-size:20px;font-weight:700;color:#37474f;letter-spacing:2px}
+.inorder .badge{display:inline-block;padding:4px 14px;border-radius:12px;font-size:13px;font-weight:700;margin-left:10px;background:#e8f5e9;color:#2e7d32}
+
+/* 旋转标注箭头 */
+.rot-arrow{font-size:13px;fill:#c62828;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>🌳 AVL 树构建与旋转实操</h1>
+<p class="subtitle">插入序列: <b>[30, 20, 10, 25, 40, 35, 50]</b>　|　约定: BF = 左子树高 − 右子树高　|　空结点高 = −1</p>
+
+<div class="controls">
+  <button id="btnPrev" onclick="prev()">◀ 上一步</button>
+  <button id="btnNext" onclick="next()">下一步 ▶</button>
+  <span id="stepTag">第 1 / 9 步</span>
+</div>
+
+<div class="info-card" id="infoCard">
+  <h2 id="stepTitle">步骤 1：插入 30</h2>
+  <p class="detail" id="stepDesc">插入根结点 30，树中只有一个结点，平衡因子为 0，无失衡。</p>
+</div>
+
+<div class="svg-panel">
+  <svg id="treeSvg" width="1000" height="500"></svg>
+  <div class="legend">
+    <span><span class="dot" style="background:#ffcdd2"></span> 失衡结点 (BF超出±1)</span>
+    <span><span class="dot" style="background:#fff9c4"></span> 旋转轴</span>
+    <span><span class="dot" style="background:#fff"></span> 普通结点</span>
+  </div>
+</div>
+
+<div class="inorder">
+  <h3>📋 当前树的中序遍历</h3>
+  <p class="seq" id="inorderSeq">[30]</p>
+  <span class="badge" id="bstBadge">BST ✓</span>
+</div>
+
+</div>
+
+<script>
+// ── 9 步数据 ─────────────────────────────────────────
+// nodes: [key, x, y, bfStr, color?]
+// edges: [x1, y1, x2, y2]
+// inorder: [keys...]
+const steps = [
+  // Step 1
+  { title:"步骤 1：插入 30",
+    desc:"插入根结点 <b>30</b>，树中只有一个结点，平衡因子为 0。<br><span class='tag tag-ok'>无失衡</span>",
+    nodes:[["30",500,70,"0"]],
+    edges:[],
+    inorder:[30],
+    axis:null },
+
+  // Step 2
+  { title:"步骤 2：插入 20",
+    desc:"<b>20 < 30</b>，插入左子树。30 的左子树高度 +1，BF 变为 +1。<br><span class='tag tag-ok'>无失衡</span>，仍在平衡范围内。",
+    nodes:[["30",500,70,"+1"],["20",380,190,"0"]],
+    edges:[[500,70,380,190]],
+    inorder:[20,30],
+    axis:null },
+
+  // Step 3: 插入 10 → LL失衡！
+  { title:"步骤 3：插入 10（<span style='color:#c62828'>LL 失衡</span>）",
+    desc:"<b>10 < 20 < 30</b>，插入到最左侧。30 的 BF 达到 <span class='tag tag-danger'>+2</span>，<b>LL 型失衡</b>！<br>" +
+        "失衡路径: 30 → 20 → 10，均为左偏（同侧）。失衡结点: <b>30</b>(BF=+2)，旋转轴: <span class='tag tag-axis'><b>20</b></span>",
+    nodes:[["30",500,60,"+2","#ffcdd2"],["20",400,170,"+1","#fff9c4"],["10",300,280,"0"]],
+    edges:[[500,60,400,170],[400,170,300,280]],
+    inorder:[10,20,30],
+    axis:"20" },
+
+  // Step 4: LL 右旋后
+  { title:"步骤 4：LL 右旋后",
+    desc:"以 <span class='tag tag-axis'><b>20</b></span> 为轴执行 <b>右旋</b>（顺时针）：30 下沉为 20 的右孩子。<br>" +
+        "旋转后各结点 BF 恢复 0，<span class='tag tag-ok'>树恢复平衡</span>。",
+    nodes:[["20",500,60,"0","#fff9c4"],["10",380,190,"0"],["30",620,190,"0"]],
+    edges:[[500,60,380,190],[500,60,620,190]],
+    inorder:[10,20,30],
+    axis:"20" },
+
+  // Step 5: 插入 25
+  { title:"步骤 5：插入 25",
+    desc:"<b>25</b> 介于 20 和 30 之间，插入到 30 的左子树。20 的 BF 变为 −1，30 的 BF 变为 +1。<br><span class='tag tag-ok'>无失衡</span>。",
+    nodes:[["20",500,60,"−1"],["10",370,190,"0"],["30",630,190,"+1"],["25",560,310,"0"]],
+    edges:[[500,60,370,190],[500,60,630,190],[630,190,560,310]],
+    inorder:[10,20,25,30],
+    axis:null },
+
+  // Step 6: 插入 40
+  { title:"步骤 6：插入 40",
+    desc:"<b>40 > 30</b>，插入到 30 的右子树。30 的 BF 恢复 0，20 的 BF 仍为 −1。<br><span class='tag tag-ok'>无失衡</span>。",
+    nodes:[["20",500,60,"−1"],["10",370,190,"0"],["30",630,190,"0"],["25",550,310,"0"],["40",710,310,"0"]],
+    edges:[[500,60,370,190],[500,60,630,190],[630,190,550,310],[630,190,710,310]],
+    inorder:[10,20,25,30,40],
+    axis:null },
+
+  // Step 7: 插入 35 → RR失衡！
+  { title:"步骤 7：插入 35（<span style='color:#c62828'>RR 失衡</span>）",
+    desc:"<b>35</b> 介于 30 和 40 之间，插入到 40 的左子树。20 的 BF 达到 <span class='tag tag-danger'>−2</span>，<b>RR 型失衡</b>！<br>" +
+        "失衡路径: 20 → 30 → 40 → 35，右子树连续偏重。失衡结点: <b>20</b>(BF=−2)，旋转轴: <span class='tag tag-axis'><b>30</b></span>",
+    nodes:[["20",460,60,"−2","#ffcdd2"],["10",320,190,"0"],["30",620,170,"−1","#fff9c4"],
+           ["25",530,300,"0"],["40",720,290,"+1"],["35",680,400,"0"]],
+    edges:[[460,60,320,190],[460,60,620,170],[620,170,530,300],[620,170,720,290],[720,290,680,400]],
+    inorder:[10,20,25,30,35,40],
+    axis:"30" },
+
+  // Step 8: RR 左旋后
+  { title:"步骤 8：RR 左旋后",
+    desc:"以 <span class='tag tag-axis'><b>30</b></span> 为轴执行 <b>左旋</b>（逆时针）：20 下沉为 30 的左孩子，30 上升为新根。<br>" +
+        "40 的 BF 仍为 +1（因其左子树有 35），其余结点恢复。<span class='tag tag-ok'>树恢复平衡</span>。",
+    nodes:[["30",500,60,"0","#fff9c4"],["20",350,200,"0"],["40",650,200,"+1"],
+           ["10",240,330,"0"],["25",410,330,"0"],["35",580,330,"0"]],
+    edges:[[500,60,350,200],[500,60,650,200],[350,200,240,330],[350,200,410,330],[650,200,580,330]],
+    inorder:[10,20,25,30,35,40],
+    axis:"30" },
+
+  // Step 9: 插入 50（最终树）
+  { title:"步骤 9：插入 50（最终 AVL 树）",
+    desc:"<b>50 > 40</b>，插入到 40 的右子树。40 的 BF 恢复 0。整棵树所有 BF 均在 [−1, 0, +1] 范围内。<br>" +
+        "<span class='tag tag-ok'>✅ 最终 AVL 树构建完成！</span>",
+    nodes:[["30",500,60,"0"],["20",350,200,"0"],["40",650,200,"0"],
+           ["10",240,330,"0"],["25",410,330,"0"],["35",560,330,"0"],["50",740,330,"0"]],
+    edges:[[500,60,350,200],[500,60,650,200],
+           [350,200,240,330],[350,200,410,330],
+           [650,200,560,330],[650,200,740,330]],
+    inorder:[10,20,25,30,35,40,50],
+    axis:null }
+];
+
+let idx = 0;
+
+function draw() {
+  const s = steps[idx];
+  document.getElementById("stepTag").innerText = `第 ${idx+1} / ${steps.length} 步`;
+  document.getElementById("stepTitle").innerHTML = s.title;
+  document.getElementById("stepDesc").innerHTML = s.desc;
+  document.getElementById("btnPrev").disabled = (idx === 0);
+  document.getElementById("btnNext").disabled = (idx === steps.length - 1);
+
+  // inorder
+  const seq = s.inorder.join(" → ");
+  document.getElementById("inorderSeq").innerText = seq;
+  const isSorted = s.inorder.every((v,i,a)=>i===0||v>a[i-1]);
+  const badge = document.getElementById("bstBadge");
+  badge.innerText = isSorted ? "BST ✓ 严格递增" : "BST ✗";
+  badge.style.background = isSorted ? "#e8f5e9" : "#ffebee";
+  badge.style.color = isSorted ? "#2e7d32" : "#c62828";
+
+  const svg = document.getElementById("treeSvg");
+  svg.innerHTML = "";
+
+  // draw edges
+  s.edges.forEach(e => {
+    const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.setAttribute("x1", e[0]); line.setAttribute("y1", e[1]);
+    line.setAttribute("x2", e[2]); line.setAttribute("y2", e[3]);
+    line.setAttribute("stroke","#78909c");
+    line.setAttribute("stroke-width","2");
+    svg.appendChild(line);
+  });
+
+  // draw nodes
+  s.nodes.forEach(n => {
+    const [key, cx, cy, bf, color] = n;
+    const fill = color || "#fff";
+    const strokeColor = color === "#ffcdd2" ? "#c62828" : (color === "#fff9c4" ? "#e65100" : "#455a64");
+
+    // circle
+    const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    circle.setAttribute("cx", cx); circle.setAttribute("cy", cy);
+    circle.setAttribute("r", "28");
+    circle.setAttribute("fill", fill);
+    circle.setAttribute("stroke", strokeColor);
+    circle.setAttribute("stroke-width", color ? "3" : "2");
+    svg.appendChild(circle);
+
+    // key
+    const txt = document.createElementNS("http://www.w3.org/2000/svg","text");
+    txt.setAttribute("x", cx); txt.setAttribute("y", cy+6);
+    txt.setAttribute("text-anchor","middle");
+    txt.setAttribute("font-size","18");
+    txt.setAttribute("font-weight","bold");
+    txt.setAttribute("fill","#263238");
+    txt.textContent = key;
+    svg.appendChild(txt);
+
+    // BF label
+    const bfTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
+    bfTxt.setAttribute("x", cx+36); bfTxt.setAttribute("y", cy-12);
+    bfTxt.setAttribute("font-size","13");
+    bfTxt.setAttribute("font-weight","700");
+    bfTxt.setAttribute("fill", n[3].startsWith("+2")||n[3].startsWith("−2") ? "#c62828" : "#78909c");
+    bfTxt.textContent = "BF=" + bf;
+    svg.appendChild(bfTxt);
+
+    // axis marker
+    if (s.axis === key) {
+      const axisTxt = document.createElementNS("http://www.w3.org/2000/svg","text");
+      axisTxt.setAttribute("x", cx); axisTxt.setAttribute("y", cy-38);
+      axisTxt.setAttribute("text-anchor","middle");
+      axisTxt.setAttribute("font-size","12");
+      axisTxt.setAttribute("font-weight","700");
+      axisTxt.setAttribute("fill","#e65100");
+      axisTxt.textContent = "▲ 旋转轴";
+      svg.appendChild(axisTxt);
+
+      // dashed ring around axis
+      const ring = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      ring.setAttribute("cx", cx); ring.setAttribute("cy", cy);
+      ring.setAttribute("r", "34");
+      ring.setAttribute("fill","none");
+      ring.setAttribute("stroke","#e65100");
+      ring.setAttribute("stroke-width","2");
+      ring.setAttribute("stroke-dasharray","6,3");
+      svg.appendChild(ring);
+    }
+  });
+}
+
+function next() { if (idx < steps.length-1) { idx++; draw(); } }
+function prev() { if (idx > 0) { idx--; draw(); } }
+
+draw();
+</script>
+</body>
+</html>
